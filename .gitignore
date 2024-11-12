@@ -1,0 +1,5 @@
+.idea
+.venv
+data
+labelstudio
+cassette_data_formatted
