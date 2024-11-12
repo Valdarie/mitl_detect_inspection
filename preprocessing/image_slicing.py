@@ -126,9 +126,9 @@ def slice_images(root_dir: str, anno_fname: str, img_dir: str, slice_size: int, 
 
 def run():
     DATA_DIR = os.path.join("..", "data")
-    ANNOTATION_FNAME = "cassette7.json"  # change to train_coco.json or train.json etc
+    ANNOTATION_FNAME = "coco.json"  # change to train_coco.json or train.json etc
     ANNOTATION_PATH = os.path.join(DATA_DIR, ANNOTATION_FNAME)
-    CORRECTED_ANNOTATION_FNAME = "cassette7_corrected_coco.json"  # change to train_coco.json or train.json etc
+    CORRECTED_ANNOTATION_FNAME = "coco.json"  # change to train_coco.json or train.json etc
     CORRECTED_ANNOTATION_PATH = os.path.join(DATA_DIR, CORRECTED_ANNOTATION_FNAME)
     IMAGE_DIR = "images" 
 
