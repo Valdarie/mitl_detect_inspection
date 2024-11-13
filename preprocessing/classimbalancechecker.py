@@ -1,4 +1,5 @@
 # class_imbalance_check.py
+# Do this right after image slicing
 import json
 from collections import Counter, defaultdict
 import os.path
@@ -66,11 +67,28 @@ def calculate_class_counts_deduped(annotations, category_mapping):
     bbox_counts = Counter(ann['category_id'] for ann in annotations)
     return {category_mapping[cat_id]: count for cat_id, count in bbox_counts.items()}
 
+def calculate_median_bbox_size(annotations, category_mapping):
+    bbox_sizes = defaultdict(list)
+    for ann in annotations['annotations']:
+        defect_type = category_mapping[ann['category_id']]
+        bbox_area = calculate_area(ann['bbox'])
+        bbox_sizes[defect_type].append(bbox_area)
+    return {defect_type: np.median(sizes) if sizes else 0 for defect_type, sizes in bbox_sizes.items()}
+
+
+def classify_defect_scale(median_bbox_sizes, category_mapping):
+    # Set a dynamic threshold using the median of non-zero median sizes
+    size_threshold = np.median([size for size in median_bbox_sizes.values() if size > 0])
+    return {
+        defect_type: "Large Scale" if median_size > size_threshold else "Small Scale"
+        for defect_type, median_size in median_bbox_sizes.items()
+    }
+
 def run():
     # Load original and sliced annotation files
-    with open(f"./data/coco_json_files/{coco_file_name}.json") as f:
+    with open(f"./data/coco_json_files/{coco_file_name}.json") as f: # . for script, .. for notebook
         original_annotations = json.load(f)
-    with open(f"./data/coco_json_files/{coco_file_name}_sliced_coco.json") as f:
+    with open(f"./data/coco_json_files/{coco_file_name}_sliced_coco.json") as f: # . for script, .. for notebook
         sliced_annotations = json.load(f)
 
     # Initialize COCO objects
@@ -88,7 +106,7 @@ def run():
     all_areas = [calculate_area(ann['bbox']) for ann in original_annotations['annotations']]
     small_threshold, medium_threshold = np.percentile(all_areas, 33), np.percentile(all_areas, 66)
 
-    # Create bounding box data for original and sliced annotations
+    # Create bounding box data with size categories
     original_bbox_data = create_bbox_size_data(original_annotations, category_mapping, small_threshold, medium_threshold)
     sliced_bbox_data = create_bbox_size_data(sliced_annotations, category_mapping, small_threshold, medium_threshold)
 
@@ -96,28 +114,84 @@ def run():
     unique_annotations, removed_ids = remove_duplicate_bboxes(sliced_annotations['annotations'], iou_threshold=0.7)
     sliced_annotations['annotations'] = unique_annotations  # Overwrite with deduplicated annotations
 
-    # Calculate class counts after deduplication
-    deduped_counts = calculate_class_counts_deduped(unique_annotations, category_mapping)
+    # Calculate size-category-based counts
+    def calculate_size_category_counts(bbox_data):
+        size_category_counts = defaultdict(lambda: defaultdict(int))
+        for data in bbox_data:
+            defect_type = data["Defect Type"]
+            size_category = data["Size Category"]
+            size_category_counts[defect_type][size_category] += 1
+        return size_category_counts
 
-    # Prepare data for DataFrame display
-    data = {
-        "Defect Type": [category_mapping[cat_id] for cat_id in original_counts.keys()],
-        "Original Count": [original_counts[cat_id] for cat_id in original_counts.keys()],
-        "Sliced Count": [sliced_counts.get(cat_id, 0) for cat_id in original_counts.keys()],
-        "Deduplicated Sliced Count": [deduped_counts.get(category_mapping[cat_id], 0) for cat_id in original_counts.keys()]
-    }
+    original_size_counts = calculate_size_category_counts(original_bbox_data)
+    sliced_size_counts = calculate_size_category_counts(sliced_bbox_data)
+    deduped_size_counts = calculate_size_category_counts(create_bbox_size_data(sliced_annotations, category_mapping, small_threshold, medium_threshold))
+
+    size_data = []
+    for defect_type in category_mapping.values():  # Iterate over all known defect types
+        for size_category in ["Small", "Medium", "Large"]:
+            size_data.append({
+                "Defect Type": defect_type,
+                "Size Category": size_category,
+                "Original Count": original_size_counts[defect_type].get(size_category, 0),
+                "Sliced Count": sliced_size_counts[defect_type].get(size_category, 0),
+                "Deduplicated Sliced Count": deduped_size_counts[defect_type].get(size_category, 0)
+            })
 
     # Create and display DataFrame
-    df = pd.DataFrame(data).sort_values(by="Original Count", ascending=False).reset_index(drop=True)
-    print("Class Imbalance Comparison\n", df)
+    df = pd.DataFrame(size_data).sort_values(by=["Defect Type", "Size Category"]).reset_index(drop=True)
+    print("Class Imbalance by Size Category\n", df)
 
-    # Display bounding box data for original and sliced images
-    #print("\nBounding Box Data for Original Dataset:", original_bbox_data)
-    #print("\nBounding Box Data for Sliced Dataset (After Deduplication):", sliced_bbox_data)
-
-    # Optional: Save deduplicated annotations back to the original file
     with open(f"./data/coco_json_files/{coco_file_name}_sliced_coco.json", "w") as f:
-        json.dump(sliced_annotations, f)
+        json.dump(sliced_annotations, f) #deduplicated version
+
+    bbox_sizes = defaultdict(list)
+
+    for ann in original_annotations['annotations']:
+        defect_type = category_mapping[ann['category_id']]
+        bbox_area = calculate_area(ann['bbox'])
+        bbox_sizes[defect_type].append(bbox_area)
+
+    # Calculate the median size for each defect type, including all categories in the mapping
+    median_bbox_sizes = {defect_type: np.median(sizes) if sizes else 0 for defect_type, sizes in bbox_sizes.items()}
+    median_bbox_sizes = {defect_type: median_bbox_sizes.get(defect_type, 0) for defect_type in category_mapping.values()}
+
+    # Determine a threshold for "Small Scale" vs "Large Scale" using the median of non-zero medians
+    size_threshold = np.median([size for size in median_bbox_sizes.values() if size > 0])
+
+    # Classify each defect type based on the threshold
+    scale_classification = {
+        defect_type: "Large Scale" if median_size > size_threshold else "Small Scale"
+        for defect_type, median_size in median_bbox_sizes.items()
+    }
+
+   # Remove duplicates from sliced dataset
+    unique_annotations, removed_ids = remove_duplicate_bboxes(sliced_annotations['annotations'], iou_threshold=0.7)
+    sliced_annotations['annotations'] = unique_annotations  # Overwrite with deduplicated annotations
+
+    median_bbox_sizes_original = calculate_median_bbox_size(original_annotations, category_mapping)
+    scale_classification_original = classify_defect_scale(median_bbox_sizes_original, category_mapping)
+
+    median_bbox_sizes_sliced = calculate_median_bbox_size(sliced_annotations, category_mapping)
+    scale_classification_sliced = classify_defect_scale(median_bbox_sizes_sliced, category_mapping)
+
+    # Prepare data for display
+    scale_data_original = [
+        {"Defect Type": defect_type, "Median Bounding Box Size": median_size, "Scale Classification": scale_classification_original[defect_type]}
+        for defect_type, median_size in median_bbox_sizes_original.items()
+    ]
+
+    scale_data_sliced = [
+        {"Defect Type": defect_type, "Median Bounding Box Size": median_size, "Scale Classification": scale_classification_sliced[defect_type]}
+        for defect_type, median_size in median_bbox_sizes_sliced.items()
+    ]
+
+    # Create and display DataFrames
+    df_original = pd.DataFrame(scale_data_original).sort_values(by="Median Bounding Box Size", ascending=False).reset_index(drop=True)
+    df_sliced = pd.DataFrame(scale_data_sliced).sort_values(by="Median Bounding Box Size", ascending=False).reset_index(drop=True)
+
+    print("\nDefect Type Scale Classification (Original)\n", df_original)
+    print("\nDefect Type Scale Classification (Sliced)\n", df_sliced)
 
 if __name__ == "__main__":
     run()
