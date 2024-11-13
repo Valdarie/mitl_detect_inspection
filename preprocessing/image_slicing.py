@@ -7,8 +7,8 @@ from PIL import Image, ImageDraw
 from sahi.slicing import slice_coco
 from sahi.utils.file import load_json, save_json
 from tqdm import tqdm
+import argparse
 
-coco_file_name = "cassette1"
 
 def plot_mono_bboxes_coco(annotation: dict, root_dir: str, img_dir: str, save_dir: str):
 
@@ -87,7 +87,7 @@ def slice_images(root_dir: str, anno_fname: str, img_dir: str, slice_size: int, 
     sliced_coco_dict, _ = slice_coco(
         coco_annotation_file_path=os.path.join(root_dir, anno_fname),
         image_dir=os.path.join(root_dir, img_dir),
-        output_coco_annotation_file_name=f"../coco_json_files/{dataset_name}_sliced",
+        output_coco_annotation_file_name=f"../{dataset_name}_sliced",
         ignore_negative_samples=False,
         output_dir=os.path.join(root_dir, f"{img_dir}_sliced"),
         slice_height=slice_size,
@@ -126,10 +126,10 @@ def slice_images(root_dir: str, anno_fname: str, img_dir: str, slice_size: int, 
 
 
 def run():
-    DATA_DIR = os.path.join(".", "data") # . in script, .. in notebook
-    ANNOTATION_FNAME = f"coco_json_files/{coco_file_name}.json"  # change to train_coco.json or train.json etc
+    DATA_DIR = os.path.join(".", "data")
+    ANNOTATION_FNAME = "coco_json_files/cassette1_train.json"  # change to train_coco.json or train.json etc
     ANNOTATION_PATH = os.path.join(DATA_DIR, ANNOTATION_FNAME)
-    CORRECTED_ANNOTATION_FNAME = f"coco_json_files/{coco_file_name}.json"  # change to train_coco.json or train.json etc
+    CORRECTED_ANNOTATION_FNAME = "coco_json_files/cassette1_train_sliced.json"  # change to train_coco.json or train.json etc
     CORRECTED_ANNOTATION_PATH = os.path.join(DATA_DIR, CORRECTED_ANNOTATION_FNAME)
     IMAGE_DIR = "images" 
 

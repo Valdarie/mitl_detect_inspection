@@ -6,7 +6,7 @@ from collections import Counter
 from pycocotools.coco import COCO
 
 # Set up file names for consistency
-coco_file_name = 'cassette1'
+coco_file_name = 'cassette2'
 data_dir = "./data/coco_json_files/"  # . for script, .. for notebook
 original_coco_path = os.path.join(data_dir, f"{coco_file_name}.json")
 
@@ -16,11 +16,6 @@ random.seed(42)
 # Load the original COCO annotations
 with open(original_coco_path, 'r') as f:
     original_annotations = json.load(f)
-
-# Ensure all file names in the annotations have a .png extension
-for image in original_annotations['images']:
-    if image['file_name'].endswith('.bmp'):
-        image['file_name'] = image['file_name'].replace('.bmp', '.png')
 
 # Define the split ratios
 train_ratio = 0.7

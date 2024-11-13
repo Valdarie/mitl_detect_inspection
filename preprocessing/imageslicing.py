@@ -8,6 +8,7 @@ from sahi.slicing import slice_coco
 from sahi.utils.file import load_json, save_json
 from tqdm import tqdm
 
+coco_file_name = 'cassette2_train' #change this
 
 def plot_mono_bboxes_coco(annotation: dict, root_dir: str, img_dir: str, save_dir: str):
 
@@ -126,9 +127,9 @@ def slice_images(root_dir: str, anno_fname: str, img_dir: str, slice_size: int, 
 
 def run():
     DATA_DIR = os.path.join(".", "data")
-    ANNOTATION_FNAME = "coco_json_files/cassette2_train.json"  # change to train_coco.json or train.json etc
+    ANNOTATION_FNAME = f"coco_json_files/{coco_file_name}.json"  # change to train_coco.json or train.json etc
     ANNOTATION_PATH = os.path.join(DATA_DIR, ANNOTATION_FNAME)
-    CORRECTED_ANNOTATION_FNAME = "coco_json_files/cassette2_train_coco.json"  # change to train_coco.json or train.json etc
+    CORRECTED_ANNOTATION_FNAME = f"coco_json_files/{coco_file_name}_sliced.json"  # change to train_coco.json or train.json etc
     CORRECTED_ANNOTATION_PATH = os.path.join(DATA_DIR, CORRECTED_ANNOTATION_FNAME)
     IMAGE_DIR = "images" 
 
