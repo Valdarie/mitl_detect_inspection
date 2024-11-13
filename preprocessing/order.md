@@ -5,6 +5,8 @@
 2. `upload_annotations.py`
 
 ## Data Preprocessing
-1. `image_slicing.py`
-2. `classimbalancechecker.py`
-3. `traintestsplit.py`
+1. Run `dataloader.py`
+   1. `traintestsplit.py`
+   2. `image_slicing.py`
+   3. `classimbalancechecker.py`
+2. 
