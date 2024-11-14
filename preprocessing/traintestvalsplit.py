@@ -6,8 +6,8 @@ from collections import Counter
 from pycocotools.coco import COCO
 
 # Set up file names for consistency
-coco_file_name = 'cassette2'
-data_dir = "./data/coco_json_files/"  # . for script, .. for notebook
+coco_file_name = 'cassette3'
+data_dir = "./data/coco/"  # . for script, .. for notebook
 original_coco_path = os.path.join(data_dir, f"{coco_file_name}.json")
 
 # Set random seed for reproducibility

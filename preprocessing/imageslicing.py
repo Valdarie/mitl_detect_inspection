@@ -8,15 +8,15 @@ from sahi.slicing import slice_coco
 from sahi.utils.file import load_json, save_json
 from tqdm import tqdm
 
-coco_file_name = 'cassette2_train' #change this
+coco_file_name ='cassette1_train'
 
-def plot_mono_bboxes_coco(annotation: dict, root_dir: str, img_dir: str, save_dir: str):
+def plot_mono_bboxes_coco(annotation: dict, img_dir: str, save_dir: str):
 
     # read image
     for img in tqdm(annotation["images"],  desc="Plotting unsliced coco dataset bounding boxes"):
         fig, ax = plt.subplots(1, 1, figsize=(12, 9), constrained_layout=True)
 
-        mono_img = Image.open(os.path.join(root_dir, img_dir, img["file_name"])).convert("L")
+        mono_img = Image.open(os.path.join(img_dir, img["file_name"])).convert("L")
         rgb_img = Image.merge("RGB", (mono_img, mono_img, mono_img))
 
         # iterate over all annotations
@@ -33,11 +33,11 @@ def plot_mono_bboxes_coco(annotation: dict, root_dir: str, img_dir: str, save_di
         ax.axis("off")
         ax.imshow(rgb_img)
 
-        fig.savefig(os.path.join(root_dir, save_dir, img["file_name"][:-4] + ".png"))
+        fig.savefig(os.path.join(save_dir, img["file_name"][:-4] + ".png"))
         plt.close()
 
 
-def plot_sliced_mono_bboxes_coco(annotations: dict, root_dir: str, img_dir: str, save_dir: str):
+def plot_sliced_mono_bboxes_coco(annotations: dict, img_dir: str, save_dir: str):
 
     # get number of slices, row-wise and col-wise
     num_rows = len(set([img["file_name"].split("_")[-1] for img in annotations["images"]]))
@@ -47,14 +47,12 @@ def plot_sliced_mono_bboxes_coco(annotations: dict, root_dir: str, img_dir: str,
         img_idx = img["id"] - 1
 
         fig, axes = plt.subplots(num_rows, num_cols, figsize=(12, 9), constrained_layout=True)
-        # fig.tight_layout()
-        # fig.subplots_adjust(wspace=0.1, hspace=0.1)
 
         for row_idx in range(num_rows):
             for col_idx in range(num_cols):
 
                 # read image
-                mono_img = Image.open(os.path.join(root_dir, img_dir, annotations["images"][img_idx]["file_name"])).convert("L")
+                mono_img = Image.open(os.path.join(img_dir, annotations["images"][img_idx]["file_name"])).convert("L")
                 rgb_img = Image.merge("RGB", (mono_img, mono_img, mono_img))
 
                 # iterate over all annotations
@@ -75,21 +73,21 @@ def plot_sliced_mono_bboxes_coco(annotations: dict, root_dir: str, img_dir: str,
                 img_idx += 1
 
         # save and close plot
-        fig.savefig(os.path.join(root_dir, save_dir, img["file_name"].split("_")[0] + "_sliced.png"))
+        fig.savefig(os.path.join(save_dir, img["file_name"].split("_")[0] + "_sliced.png"))
         plt.close()
 
 
-def slice_images(root_dir: str, anno_fname: str, img_dir: str, slice_size: int, overlap_ratio: float):
-    coco_dict = load_json(os.path.join(root_dir, anno_fname))
-    dataset_name = re.split('_|\.', anno_fname)[0]
+def slice_images(anno_path: str, img_dir: str, slice_size: int, overlap_ratio: float, vis_dir: str):
+    coco_dict = load_json(anno_path)
+    dataset_name = re.split('_|\.', anno_path.split("\\")[-1])[0]
 
     # slice images and annotations
     sliced_coco_dict, _ = slice_coco(
-        coco_annotation_file_path=os.path.join(root_dir, anno_fname),
-        image_dir=os.path.join(root_dir, img_dir),
-        output_coco_annotation_file_name=f"../{dataset_name}_sliced",
+        coco_annotation_file_path=anno_path,
+        image_dir=img_dir,
+        output_coco_annotation_file_name=f"../{coco_file_name}_sliced",
         ignore_negative_samples=False,
-        output_dir=os.path.join(root_dir, f"{img_dir}_sliced"),
+        output_dir=f"{img_dir}_sliced",
         slice_height=slice_size,
         slice_width=slice_size,
         overlap_height_ratio=overlap_ratio,
@@ -99,25 +97,22 @@ def slice_images(root_dir: str, anno_fname: str, img_dir: str, slice_size: int, 
     )
 
     # create save dir, delete save dir if already exists
-    save_dir = f"{dataset_name}_bboxes_vis"
-    save_path = os.path.join(root_dir, save_dir)
+    save_dir = os.path.join(vis_dir, dataset_name)
 
-    if os.path.exists(save_path):
-        shutil.rmtree(save_path)
+    if os.path.exists(save_dir):
+        shutil.rmtree(save_dir)
 
-    os.makedirs(save_path)
+    os.makedirs(save_dir)
 
 
     # visualize bboxes on unsliced and sliced images
     plot_mono_bboxes_coco(
         annotation=coco_dict,
-        root_dir=root_dir,
         img_dir=img_dir,
         save_dir=save_dir
     )
     plot_sliced_mono_bboxes_coco(
         annotations=sliced_coco_dict,
-        root_dir=root_dir,
         img_dir=f"{img_dir}_sliced",
         save_dir=save_dir
     )
@@ -126,12 +121,11 @@ def slice_images(root_dir: str, anno_fname: str, img_dir: str, slice_size: int, 
 
 
 def run():
-    DATA_DIR = os.path.join(".", "data")
-    ANNOTATION_FNAME = f"coco_json_files/{coco_file_name}.json"  # change to train_coco.json or train.json etc
-    ANNOTATION_PATH = os.path.join(DATA_DIR, ANNOTATION_FNAME)
-    CORRECTED_ANNOTATION_FNAME = f"coco_json_files/{coco_file_name}_sliced.json"  # change to train_coco.json or train.json etc
-    CORRECTED_ANNOTATION_PATH = os.path.join(DATA_DIR, CORRECTED_ANNOTATION_FNAME)
-    IMAGE_DIR = "images" 
+    DATA_DIR = os.path.join(".", "data", "coco")
+    ANNOTATION_PATH = os.path.join(DATA_DIR, f"{coco_file_name}.json")  # change to train_coco.json or train.json etc
+    CORRECTED_ANNOTATION_PATH = os.path.join(DATA_DIR, f"{coco_file_name}_corrected_coco.json")  # change to train_coco.json or train.json etc
+    IMAGE_DIR = os.path.join(DATA_DIR, "images") 
+    VISUALIZATION_DIR = os.path.join(".", "data", "bbox_vis")
 
     SLICE_SIZE = 640
     OVERLAP_RATIO = 0.2
@@ -143,11 +137,11 @@ def run():
 
     # slice and save annotations and images
     coco, sliced_coco = slice_images(
-        root_dir=DATA_DIR, 
-        anno_fname=CORRECTED_ANNOTATION_FNAME, 
+        anno_path=CORRECTED_ANNOTATION_PATH, 
         img_dir=IMAGE_DIR,
         slice_size=SLICE_SIZE,
-        overlap_ratio=OVERLAP_RATIO
+        overlap_ratio=OVERLAP_RATIO,
+        vis_dir=VISUALIZATION_DIR
     )
 
 

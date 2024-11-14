@@ -88,13 +88,13 @@ def classify_defect_scale(median_bbox_sizes, category_mapping):
 
 def run():
     # Load original and sliced annotation files
-    with open(f"./data/coco_json_files/{coco_file_name}.json") as f:
+    with open(f"./data/coco/{coco_file_name}.json") as f:
         original_annotations = json.load(f)
-    with open(f"./data/coco_json_files/{coco_file_name}_sliced.json") as f:
+    with open(f"./data/coco/{coco_file_name}_sliced.json") as f:
         sliced_annotations = json.load(f)
 
-    coco_original = COCO(f"./data/coco_json_files/{coco_file_name}.json")
-    coco_sliced = COCO(f"./data/coco_json_files/{coco_file_name}_sliced.json")
+    coco_original = COCO(f"./data/coco/{coco_file_name}.json")
+    coco_sliced = COCO(f"./data/coco/{coco_file_name}_sliced.json")
     category_mapping = {cat['id']: cat['name'] for cat in coco_original.loadCats(coco_original.getCatIds())}
 
     # Calculate median bounding box sizes for all categories
