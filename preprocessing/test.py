@@ -121,7 +121,7 @@ def horizontal_flip(
     print(f"Augmented annotations saved to {augmented_json_path}")
 
 
-def vertical_flip_with_bboxes(
+def vertical_flip(
     image_dir,
     coco_annotations,
     output_dir,
@@ -179,6 +179,7 @@ def vertical_flip_with_bboxes(
     # Save the updated COCO JSON annotations
     augmented_json_path = os.path.join(output_dir, f"{coco_file_name}_{aug_type}.json")
     save_json(coco_annotations, augmented_json_path)
+    print(f"Augmented annotations saved to {augmented_json_path}")
 
 def random_flip(
     image_dir,
