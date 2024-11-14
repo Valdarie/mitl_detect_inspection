@@ -4,8 +4,10 @@ from collections import Counter, defaultdict
 import numpy as np
 import pandas as pd
 from pycocotools.coco import COCO
+import shutil
+import os.path
 
-coco_file_name = 'cassette1_train'
+coco_file_name = 'cassette2_val'
 base_path = "./data/coco/"
 
 def calculate_class_counts(coco_obj):
@@ -72,6 +74,34 @@ def classify_defect_scale(median_bbox_sizes):
     size_threshold = np.median([size for size in median_bbox_sizes.values() if size > 0])
     return {defect_type: "Large Scale" if size > size_threshold else "Small Scale" for defect_type, size in median_bbox_sizes.items()}
 
+def move_coco_file(coco_file_name, source_dir=base_path):
+    # Automatically determine target split based on coco_file_name
+    if "train" in coco_file_name.lower():
+        target_split = "train"
+    elif "test" in coco_file_name.lower():
+        target_split = "test"
+    elif "val" in coco_file_name.lower():
+        target_split = "val"
+    else:
+        print("Unable to determine target split from coco_file_name.")
+        return
+
+    # Define source and destination paths
+    source_path = os.path.join(source_dir, f"{coco_file_name}_sliced_coco.json")
+    destination_path = os.path.join(source_dir, target_split, f"{coco_file_name}_sliced_coco.json")
+
+    # Check if source file exists
+    if not os.path.exists(source_path):
+        print(f"Source file {source_path} does not exist.")
+        return
+
+    # Ensure target directory exists
+    os.makedirs(os.path.dirname(destination_path), exist_ok=True)
+
+    # Move the file
+    shutil.move(source_path, destination_path)
+    print(f"File moved to {destination_path}")
+
 def run():
     with open(f"{base_path}{coco_file_name}_corrected_coco.json") as f:
         original_annotations = json.load(f)
@@ -136,6 +166,8 @@ def run():
 
     print("\nDefect Type Scale Classification (Original)\n", df_original)
     print("\nDefect Type Scale Classification (Sliced)\n", df_sliced)
+
+    move_coco_file(coco_file_name)
 
 if __name__ == "__main__":
     run()
