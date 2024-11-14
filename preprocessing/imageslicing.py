@@ -8,7 +8,7 @@ from sahi.slicing import slice_coco
 from sahi.utils.file import load_json, save_json
 from tqdm import tqdm
 
-coco_file_name ='cassette_train'
+coco_file_name ='cassette1_val'
 
 def plot_mono_bboxes_coco(annotation: dict, img_dir: str, save_dir: str):
 

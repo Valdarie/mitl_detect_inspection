@@ -5,3 +5,8 @@ labelstudio
 cassette_data_formatted
 requirements.txt
 .models
+
+testy/
+testy/bbox_vis
+testy/coco/images
+testy/coco/images_sliced
