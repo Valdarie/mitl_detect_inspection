@@ -1,4 +1,3 @@
-# class_imbalance_check.py
 import json
 import os
 import shutil
@@ -6,8 +5,9 @@ from collections import Counter, defaultdict
 import numpy as np
 import pandas as pd
 from pycocotools.coco import COCO
+from tqdm import tqdm
 
-coco_file_name = 'cassette2_val'
+coco_file_name = 'cassette3_train'
 base_path = "./data/coco/"
 
 # Determine target split from coco_file_name
@@ -47,7 +47,7 @@ def create_bbox_size_data(annotations, category_mapping, small_threshold, medium
             "Bounding Box Area": calculate_area(ann['bbox']),
             "Size Category": categorize_by_dynamic_size(calculate_area(ann['bbox']), small_threshold, medium_threshold),
         }
-        for ann in annotations['annotations']
+        for ann in tqdm(annotations['annotations'], desc="Processing Bounding Boxes")
     ]
 
 def calculate_size_category_counts(bbox_data):
@@ -71,7 +71,7 @@ def remove_duplicate_bboxes(annotations, iou_threshold=0.7):
 
     for bboxes in category_groups.values():
         for i in range(len(bboxes)):
-            for j in range(i + 1, len(bboxes)):
+            for j in tqdm(range(i + 1, len(bboxes)), desc="Checking Duplicates"):
                 if bboxes[i]['id'] in removed_ids or bboxes[j]['id'] in removed_ids:
                     continue
                 if calculate_iou(bboxes[i]['bbox'], bboxes[j]['bbox']) > iou_threshold:
