@@ -34,6 +34,7 @@ COCO_DIR = os.path.join(DATA_DIR, "coco")
 
 ORG_ANNOTATION_PATH = os.path.join(DATA_DIR, "coco",target_split, f"{coco_file_name}_corrected_coco.json")
 SLC_ANNOTATION_PATH = os.path.join(DATA_DIR, "coco",target_split, f"{coco_file_name}_sliced_coco.json")
+AUGMENTATION_PATH = os.path.join(COCO_DIR, "augmentated") # Folder for all augmentations ./data/coco/augmentated
 
 print(ORG_ANNOTATION_PATH)
 
@@ -53,6 +54,20 @@ os.path.exists(BBOX_VISUALIZATION_DIR)
 
 if not os.path.exists(BBOX_SAVE_DIR):
     os.makedirs(BBOX_SAVE_DIR)
+
+if not os.path.exists(AUGMENTATION_PATH):
+    os.makedirs(AUGMENTATION_PATH)
+
+splits = ["train", "test", "val"]
+
+# Create 'original' and 'sliced' directories within each split
+for split in splits:
+    base_path = os.path.join(AUGMENTATION_PATH, split)
+    os.makedirs(base_path, exist_ok=True)
+    
+    # Create 'original' and 'sliced' subdirectories within each split
+    os.makedirs(os.path.join(base_path, "original"), exist_ok=True)
+    os.makedirs(os.path.join(base_path, "sliced"), exist_ok=True)
 
 coco_dict = load_json(ORG_ANNOTATION_PATH)
 [img.update({"file_name": img["file_name"].split("/")[-1]}) for img in coco_dict["images"]]
@@ -106,4 +121,3 @@ for img in coco_dict["images"]:
         fig.savefig(os.path.join(BBOX_SAVE_DIR, img["file_name"][:-4] + ".png")) #save each of the image to folder called Each
         plt.close()
 
-    
