@@ -117,6 +117,7 @@ for split in splits:
     os.makedirs(os.path.join(base_path, "original"), exist_ok=True)
     os.makedirs(os.path.join(base_path, "sliced"), exist_ok=True)
 
+
 def horizontal_flip_with_bboxes(
     image_dir,
     coco_annotations,
@@ -127,70 +128,60 @@ def horizontal_flip_with_bboxes(
     std=(0.229, 0.224, 0.225),
     max_pixel_value=255.0
 ):
-    # Set AUG_SAVE_DIR and AUG_VIEW_DIR based on dataset_type (either "original" or "sliced")
+    # Set directories based on dataset_type
     AUG_SAVE_DIR = os.path.join(AUGMENTATION_PATH, target_split, dataset_type, aug_type, "each")
     AUG_VIEW_DIR = os.path.join(AUGMENTATION_PATH, target_split, dataset_type, aug_type)
 
     os.makedirs(AUG_SAVE_DIR, exist_ok=True)
     os.makedirs(AUG_VIEW_DIR, exist_ok=True)
     
-    # Augmentation pipeline with customizable normalization
+    # Augmentation pipeline with normalization
     augmentation_pipeline = A.Compose([
         A.HorizontalFlip(p=1.0),
         A.Normalize(mean=mean, std=std, max_pixel_value=max_pixel_value)
     ], bbox_params=A.BboxParams(format="coco", label_fields=["class_labels"]))
 
-    for img in coco_annotations["images"]:
+    # Use tqdm to show progress
+    for img in tqdm(coco_annotations["images"], desc=f"Processing {dataset_type} images"):
         file_name = img["file_name"]
         image_id = img["id"]
 
-        # Load image and associated bounding boxes and labels
+        # Load image as grayscale
         image_path = os.path.join(image_dir, file_name)
-        image = cv2.imread(image_path)
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # Convert to RGB for albumentations
-        
+        mono_img = Image.open(image_path).convert("L")
+
+        # Convert grayscale image to numpy array for augmentation
+        image_np = np.array(mono_img)
+
         # Get bounding boxes and labels
         bboxes = [ann["bbox"] for ann in coco_annotations["annotations"] if ann["image_id"] == image_id]
         class_labels = [ann["category_id"] for ann in coco_annotations["annotations"] if ann["image_id"] == image_id]
 
-        # Apply augmentation with normalization
-        augmented = augmentation_pipeline(image=image, bboxes=bboxes, class_labels=class_labels)
-        augmented_image = augmented["image"]
-        augmented_bboxes = augmented["bboxes"]
-
-        # Re-scale normalized image back to [0, 255] for saving in RGB
-        augmented_image_rescaled = (augmented_image * np.array(std) + np.array(mean)) * max_pixel_value
-        augmented_image_rescaled = np.clip(augmented_image_rescaled, 0, 255).astype("uint8")
+        # Apply augmentation with normalization, including class_labels
+        augmented = augmentation_pipeline(image=image_np, bboxes=bboxes, class_labels=class_labels)
         
-        # Save the plain (non-bounding-box) version in RGB format
-        output_image_path = os.path.join(AUG_SAVE_DIR, f"{aug_type}_{file_name}")
-        cv2.imwrite(output_image_path, cv2.cvtColor(augmented_image_rescaled, cv2.COLOR_RGB2BGR))
+        # Rescale and save the base monochrome image without bounding boxes
+        augmented_image = (augmented["image"] * np.array(std[0]) + mean[0]) * max_pixel_value
+        augmented_image = np.clip(augmented_image, 0, 255).astype("uint8")
+        Image.fromarray(augmented_image).save(os.path.join(AUG_SAVE_DIR, f"{aug_type}_{file_name}"))
 
-        # Plot augmented image with bounding boxes for visualization (still in RGB)
-        fig, ax = plt.subplots(1, 1, figsize=(12, 9))
-        ax.imshow(augmented_image_rescaled)  # Display in RGB
+        # Create an RGB image from the grayscale version to draw colored bounding boxes
+        rgb_img = Image.merge("RGB", (mono_img, mono_img, mono_img))
+        draw = ImageDraw.Draw(rgb_img)
         
-        # Draw each bounding box
-        for bbox in augmented_bboxes:
-            x, y, width, height = bbox
-            rect = plt.Rectangle((x, y), width, height, linewidth=2, edgecolor="lime", facecolor="none")
-            ax.add_patch(rect)
-
-        ax.axis("off")
-        # Save the augmented image with bounding boxes to AUG_VIEW_DIR in RGB
-        vis_output_path = os.path.join(AUG_VIEW_DIR, f"{aug_type}_{file_name}")
-        fig.savefig(vis_output_path, bbox_inches="tight", pad_inches=0.1)
-        plt.close(fig)
-
-        # Update COCO JSON with augmented bounding boxes
-        for ann, new_bbox in zip([ann for ann in coco_annotations["annotations"] if ann["image_id"] == image_id], augmented_bboxes):
-            ann["bbox"] = new_bbox
+        # Draw each bounding box on the RGB image
+        for bbox in augmented["bboxes"]:
+            xyxy = [bbox[0], bbox[1], bbox[0] + bbox[2], bbox[1] + bbox[3]]
+            draw.rectangle(xyxy, outline="lime", width=5)
+        
+        # Save the image with colored bounding boxes
+        rgb_img.save(os.path.join(AUG_VIEW_DIR, f"{aug_type}_{file_name}"))
 
     # Save the updated COCO JSON annotations
     augmented_json_path = os.path.join(output_dir, f"{coco_file_name}_{aug_type}.json")
     save_json(coco_annotations, augmented_json_path)
     print(f"Augmented annotations saved to {augmented_json_path}")
-    # Run the function for both original and sliced cases
-#horizontal_flip_with_bboxes(IMAGE_DIR, coco_dict, os.path.join(AUGMENTATION_PATH, target_split, "original", "horizontal_flip"), dataset_type="original")
-horizontal_flip_with_bboxes(SLICED_IMAGE_DIR, slc_dict, os.path.join(AUGMENTATION_PATH, target_split, "sliced", "horizontal_flip"), dataset_type="sliced")
 
+# Run the function for both original and sliced cases
+# horizontal_flip_with_bboxes(IMAGE_DIR, coco_dict, os.path.join(AUGMENTATION_PATH, target_split, "original", "horizontal_flip"), dataset_type="original")
+horizontal_flip_with_bboxes(SLICED_IMAGE_DIR, slc_dict, os.path.join(AUGMENTATION_PATH, target_split, "sliced", "horizontal_flip"), dataset_type="sliced")
