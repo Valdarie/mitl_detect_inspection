@@ -121,3 +121,47 @@ for img in coco_dict["images"]:
         fig.savefig(os.path.join(BBOX_SAVE_DIR, img["file_name"][:-4] + ".png")) #save each of the image to folder called Each
         plt.close()
 
+def horizontal_flip(image_dir, coco_annotations, output_dir, aug_type="horizontal_flip"):
+    augmentation_pipeline = A.Compose([
+        A.HorizontalFlip(p=1.0)
+    ], bbox_params=A.BboxParams(format="coco", label_fields=["class_labels"]))
+    
+    # Process each image in the COCO dataset
+    for img in coco_annotations["images"]:
+        file_name = img["file_name"]
+        image_id = img["id"]
+
+        # Full path to the image
+        image_path = os.path.join(image_dir, file_name)
+        
+        # Load image and associated bounding boxes and labels
+        image = cv2.imread(image_path)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        bboxes = [ann["bbox"] for ann in coco_annotations["annotations"] if ann["image_id"] == image_id]
+        class_labels = [ann["category_id"] for ann in coco_annotations["annotations"] if ann["image_id"] == image_id]
+
+        # Apply augmentation
+        augmented = augmentation_pipeline(image=image, bboxes=bboxes, class_labels=class_labels)
+        augmented_image = augmented["image"]
+        augmented_bboxes = augmented["bboxes"]
+
+        # Convert back to BGR for saving
+        augmented_image = cv2.cvtColor(augmented_image, cv2.COLOR_RGB2BGR)
+
+        # Save the augmented image
+        os.makedirs(output_dir, exist_ok=True)
+        output_image_path = os.path.join(output_dir, f"{aug_type}_{file_name}")
+        cv2.imwrite(output_image_path, augmented_image)
+
+        # Update COCO JSON with augmented bounding boxes
+        for ann, new_bbox in zip([ann for ann in coco_annotations["annotations"] if ann["image_id"] == image_id], augmented_bboxes):
+            ann["bbox"] = new_bbox
+
+    # Save the updated annotations with the augmentation type in the filename
+    augmented_json_path = os.path.join(output_dir, f"augmented_annotations_{aug_type}.json")
+    save_json(coco_annotations, augmented_json_path)
+    print(f"Augmented annotations saved to {augmented_json_path}")
+    
+
+horizontal_flip(SLICED_IMAGE_DIR, coco_dict, os.path.join(AUGMENTATION_PATH, target_split, "horizontal_flip"))
+horizontal_flip(SLICED_IMAGE_DIR, coco_dict, os.path.join(AUGMENTATION_PATH, target_split, "horizontal_flip"))
