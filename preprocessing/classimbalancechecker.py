@@ -1,14 +1,31 @@
 # class_imbalance_check.py
 import json
+import os
+import shutil
 from collections import Counter, defaultdict
 import numpy as np
 import pandas as pd
 from pycocotools.coco import COCO
-import shutil
-import os.path
 
 coco_file_name = 'cassette2_val'
 base_path = "./data/coco/"
+
+# Determine target split from coco_file_name
+target_split = None
+if "train" in coco_file_name.lower():
+    target_split = "train"
+elif "test" in coco_file_name.lower():
+    target_split = "test"
+elif "val" in coco_file_name.lower():
+    target_split = "val"
+
+if not target_split:
+    raise ValueError("Unable to determine target split from coco_file_name.")
+
+# Define paths for JSON and CSV output
+json_output_path = os.path.join(base_path, target_split)
+csv_output_path = json_output_path
+os.makedirs(csv_output_path, exist_ok=True)
 
 def calculate_class_counts(coco_obj):
     return Counter(cat_id for cat_id in coco_obj.getCatIds() for _ in coco_obj.getAnnIds(catIds=[cat_id]))
@@ -47,7 +64,6 @@ def calculate_iou(boxA, boxB):
 
 def remove_duplicate_bboxes(annotations, iou_threshold=0.7):
     removed_ids = set()
-    unique_annotations = []
     category_groups = defaultdict(list)
 
     for ann in annotations:
@@ -61,8 +77,7 @@ def remove_duplicate_bboxes(annotations, iou_threshold=0.7):
                 if calculate_iou(bboxes[i]['bbox'], bboxes[j]['bbox']) > iou_threshold:
                     removed_ids.add(bboxes[j]['id'])
 
-    unique_annotations = [ann for ann in annotations if ann['id'] not in removed_ids]
-    return unique_annotations, removed_ids
+    return [ann for ann in annotations if ann['id'] not in removed_ids]
 
 def calculate_median_bbox_size(annotations, category_mapping):
     bbox_sizes = defaultdict(list)
@@ -74,55 +89,43 @@ def classify_defect_scale(median_bbox_sizes):
     size_threshold = np.median([size for size in median_bbox_sizes.values() if size > 0])
     return {defect_type: "Large Scale" if size > size_threshold else "Small Scale" for defect_type, size in median_bbox_sizes.items()}
 
-def move_coco_file(coco_file_name, source_dir=base_path):
-    # Automatically determine target split based on coco_file_name
-    if "train" in coco_file_name.lower():
-        target_split = "train"
-    elif "test" in coco_file_name.lower():
-        target_split = "test"
-    elif "val" in coco_file_name.lower():
-        target_split = "val"
-    else:
-        print("Unable to determine target split from coco_file_name.")
-        return
+def move_coco_file():
+    for file_type in ["sliced", "corrected"]:
+        source_path = os.path.join(base_path, f"{coco_file_name}_{file_type}_coco.json")
+        destination_path = os.path.join(json_output_path, f"{coco_file_name}_{file_type}_coco.json")
 
-    # Define source and destination paths
-    source_path = os.path.join(source_dir, f"{coco_file_name}_sliced_coco.json")
-    destination_path = os.path.join(source_dir, target_split, f"{coco_file_name}_sliced_coco.json")
-
-    # Check if source file exists
-    if not os.path.exists(source_path):
-        print(f"Source file {source_path} does not exist.")
-        return
-
-    # Ensure target directory exists
-    os.makedirs(os.path.dirname(destination_path), exist_ok=True)
-
-    # Move the file
-    shutil.move(source_path, destination_path)
-    print(f"File moved to {destination_path}")
+        if os.path.exists(source_path):
+            shutil.move(source_path, destination_path)
+            print(f"Moved {source_path} to {destination_path}")
+        else:
+            print(f"Source file {source_path} does not exist.")
 
 def run():
-    with open(f"{base_path}{coco_file_name}_corrected_coco.json") as f:
+    # Load annotations
+    original_path = os.path.join(base_path, f"{coco_file_name}_corrected_coco.json")
+    sliced_path = os.path.join(base_path, f"{coco_file_name}_sliced_coco.json")
+
+    with open(original_path) as f:
         original_annotations = json.load(f)
 
-    with open(f"{base_path}{coco_file_name}_sliced_coco.json") as f:
+    with open(sliced_path) as f:
         sliced_annotations = json.load(f)
 
-    coco_original = COCO(f"{base_path}{coco_file_name}_corrected_coco.json")
-    coco_sliced = COCO(f"{base_path}{coco_file_name}_sliced_coco.json")
-
+    coco_original = COCO(original_path)
     category_mapping = {cat['id']: cat['name'] for cat in coco_original.loadCats(coco_original.getCatIds())}
 
+    # Calculate thresholds
     all_areas = [calculate_area(ann['bbox']) for ann in original_annotations['annotations']]
     small_threshold, medium_threshold = np.percentile(all_areas, 33), np.percentile(all_areas, 66)
 
+    # Generate data
     original_bbox_data = create_bbox_size_data(original_annotations, category_mapping, small_threshold, medium_threshold)
     sliced_bbox_data = create_bbox_size_data(sliced_annotations, category_mapping, small_threshold, medium_threshold)
 
-    unique_annotations, removed_ids = remove_duplicate_bboxes(sliced_annotations['annotations'], iou_threshold=0.7)
+    unique_annotations = remove_duplicate_bboxes(sliced_annotations['annotations'])
     sliced_annotations['annotations'] = unique_annotations
 
+    # Calculate counts
     original_size_counts = calculate_size_category_counts(original_bbox_data)
     sliced_size_counts = calculate_size_category_counts(sliced_bbox_data)
     deduped_size_counts = calculate_size_category_counts(create_bbox_size_data(sliced_annotations, category_mapping, small_threshold, medium_threshold))
@@ -142,9 +145,10 @@ def run():
     df = pd.DataFrame(size_data).sort_values(by=["Defect Type", "Size Category"]).reset_index(drop=True)
     print("Class Imbalance by Size Category\n", df)
 
-    with open(f"{base_path}{coco_file_name}_sliced_coco.json", "w") as f:
+    with open(sliced_path, "w") as f:
         json.dump(sliced_annotations, f)
 
+    # Calculate and classify scales
     median_bbox_sizes_original = calculate_median_bbox_size(original_annotations, category_mapping)
     median_bbox_sizes_sliced = calculate_median_bbox_size(sliced_annotations, category_mapping)
 
@@ -167,7 +171,12 @@ def run():
     print("\nDefect Type Scale Classification (Original)\n", df_original)
     print("\nDefect Type Scale Classification (Sliced)\n", df_sliced)
 
-    move_coco_file(coco_file_name)
+    # Save DataFrames to CSV
+    df.to_csv(os.path.join(csv_output_path, f'{coco_file_name}_imbalance.csv'), index=False)
+    df_original.to_csv(os.path.join(csv_output_path, f'{coco_file_name}_original.csv'), index=False)
+    df_sliced.to_csv(os.path.join(csv_output_path, f'{coco_file_name}_sliced.csv'), index=False)
+
+    move_coco_file()
 
 if __name__ == "__main__":
     run()

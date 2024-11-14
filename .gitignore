@@ -4,4 +4,4 @@ data
 labelstudio
 cassette_data_formatted
 requirements.txt
-model_training
+.models

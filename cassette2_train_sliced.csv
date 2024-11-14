@@ -1,0 +1,11 @@
+Defect Type,Median Bounding Box Size,Scale Classification
+welding_blob,52183.812909671455,Large Scale
+excessive_flash,45991.33991136481,Large Scale
+improper_welding,3498.2082367555586,Large Scale
+unknown,2843.727925774034,Large Scale
+residue_stain,1284.2867632271284,Large Scale
+line_crack,829.29017282031,Small Scale
+light_stain,473.61225194701683,Small Scale
+chip_crack,287.1286556102497,Small Scale
+particle_material,69.95511268471216,Small Scale
+bubble,63.00113730040479,Small Scale
