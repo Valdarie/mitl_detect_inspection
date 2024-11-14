@@ -181,6 +181,7 @@ def vertical_flip(
     save_json(coco_annotations, augmented_json_path)
     print(f"Augmented annotations saved to {augmented_json_path}")
 
+
 def random_flip(
     image_dir,
     coco_annotations,
@@ -928,14 +929,13 @@ def run():
     horizontal_flip(NEW_IMAGE_DIR, coco_dict, os.path.join(AUGMENTATION_PATH, target_split, "original", "horizontal_flip"), dataset_type="original")
     horizontal_flip(SLICED_IMAGE_DIR, slc_dict, os.path.join(AUGMENTATION_PATH, target_split, "sliced", "horizontal_flip"), dataset_type="sliced")
     # Run the function for both original and sliced cases
-    vertical_flip_with_bboxes(NEW_IMAGE_DIR, coco_dict, os.path.join(AUGMENTATION_PATH, target_split, "original", "vertical_flip"), dataset_type="original")
-    vertical_flip_with_bboxes(SLICED_IMAGE_DIR, slc_dict, os.path.join(AUGMENTATION_PATH, target_split, "sliced", "vertical_flip"), dataset_type="sliced")
+    vertical_flip(NEW_IMAGE_DIR, coco_dict, os.path.join(AUGMENTATION_PATH, target_split, "original", "vertical_flip"), dataset_type="original")
+    vertical_flip(SLICED_IMAGE_DIR, slc_dict, os.path.join(AUGMENTATION_PATH, target_split, "sliced", "vertical_flip"), dataset_type="sliced")
 
     safe_rotate(NEW_IMAGE_DIR, coco_dict, os.path.join(AUGMENTATION_PATH, target_split, "original", "safe_rotate"), dataset_type="original")
     safe_rotate(SLICED_IMAGE_DIR, slc_dict, os.path.join(AUGMENTATION_PATH, target_split, "sliced", "safe_rotate"), dataset_type="sliced")
 
-    horizontal_flip(NEW_IMAGE_DIR, coco_dict, os.path.join(AUGMENTATION_PATH, target_split, "original", "horizontal_flip"), dataset_type="original")
-    horizontal_flip(SLICED_IMAGE_DIR, slc_dict, os.path.join(AUGMENTATION_PATH, target_split, "sliced", "horizontal_flip"), dataset_type="sliced")
+    
 
     
 
