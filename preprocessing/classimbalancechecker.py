@@ -7,7 +7,7 @@ import pandas as pd
 from pycocotools.coco import COCO
 from tqdm import tqdm
 
-coco_file_name = 'cassette3_train'
+coco_file_name = 'cassette2_train'
 base_path = "./data/coco/"
 
 # Determine target split from coco_file_name
