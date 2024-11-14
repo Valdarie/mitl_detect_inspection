@@ -1,13 +1,13 @@
 # train_test_split.py
 import json
-import os
+import os.path
 import random
 from collections import Counter
 from pycocotools.coco import COCO
 
 # Set up file names for consistency
-coco_file_name = 'cassette3'
-data_dir = "./data/coco/"  # . for script, .. for notebook
+coco_file_name = 'cassette4'
+data_dir = os.path.join(".","data","coco")
 original_coco_path = os.path.join(data_dir, f"{coco_file_name}.json")
 
 # Set random seed for reproducibility
